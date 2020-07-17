@@ -7,6 +7,7 @@ from Quadrature import QuadValues
 from INPUT import *
 from PES import *
 import sys
+import time
 
 def sort_eig(A):
     eigVal, eigVec = np.linalg.eig(A)
@@ -16,7 +17,6 @@ def sort_eig(A):
     eigVec = eigVec[:,idx]
 
     return eigVal, eigVec
-
 
 def main():
 
@@ -73,6 +73,17 @@ def main():
 
     AA, BB, BW, GG = QuadValues(A_max, B_max, G_max)
 
+    # Load the arrays for the calculation of the interaction energies
+
+    XYZ = np.loadtxt("XYZ")
+    FIT_H2 = np.loadtxt("Water_H2.polyfit")
+    FIT_H  = np.loadtxt("Water_H.polyfit")
+
+    # Load Gaussian Quadrature abscissae and weights for the Smearing of the
+    # H2 or H zero point vibrational motion
+
+    Smear_Absc, Smear_weight = np.polynomial.legendre.leggauss(SmearQuad)
+
     # Precalculate the interaction energies given every
     # alpha, beta, gamma angle combination. This is done to save 
     # efficiency during the calculation
@@ -96,15 +107,19 @@ def main():
                 ParaH_r = np.matmul(ParaH, Rot)
 
                 for item in ParaH_r:
-                    Int_Energies[count] = H2O_H2(item)
+                    Int_Energies[count] = IE(item, XYZ, FIT_H2, Smear_Absc, Smear_weight, SmearQuad, Sig_H2)
                     count += 1
 
                 if H_Sub != np.zeros((0)):
                     H_Sub_r = np.matmul(H_Sub, Rot)
 
                     for item in H_Sub_r:
-                        Int_Energies[count] = H2O_H(item)
+                        Int_Energies[count] = IE(item, XYZ, FIT_H, Smear_Absc, Smear_weight, SmearQuad, Sig_H)
                         count += 1
+
+    print (Int_Energies)
+
+    sys.exit()
 
     # Begin looping through the J, K, and M values
 

@@ -1,45 +1,38 @@
 import numpy as np
 from sklearn.neighbors import KNeighborsRegressor as KNR
+import sys
+import time
+import matplotlib.pyplot as plt
 
+def IE(pos, XYZ, FIT, absc, weight, quad, sig):
 
-def H2O_H(a):
+    if np.linalg.norm(pos) > 3.5:
+        idx = np.argpartition(np.linalg.norm(XYZ-pos, axis=1), 2)[:2]
+        ReCalc = False
+    else:
+        ReCalc = True
 
-    x, y, z = a[0], a[1], a[2]
+    E = 0.
 
-    XYZ = np.loadtxt("XYZ")
+    for jx in range(quad):
+        for jy in range(quad):
+            for jz in range(quad):
 
-    FIT = np.loadtxt("Water_H.polyfit")
+                weight_tot = (weight[jx] * weight[jy] * weight[jz])
 
-    R = np.sqrt(x*x + y*y + z*z)
+                move = sig * np.array(([absc[jx], absc[jy], absc[jz]]))
 
-    neigh = KNR(n_neighbors=2, p=2)
-    neigh.fit(XYZ, np.zeros((110)))
+                new_pos = pos + move
 
-    dist, ID = neigh.kneighbors([[x, y, z]])
+                R = np.linalg.norm(new_pos)
+                new_pos = new_pos / R
 
-    E = (np.poly1d(FIT[ID[0][0],:])(R) + np.poly1d(FIT[ID[0][1],:])(R)) / 2.
+                if ReCalc == True:
+                    idx = np.argpartition(np.linalg.norm(XYZ-new_pos, axis=1), 2)[:2]
 
-    return E
+                E += ((np.poly1d(FIT[idx[0],:])(R) + np.poly1d(FIT[idx[1],:])(R)) / 2.) * weight_tot
 
-def H2O_H2(a):
-
-    x, y, z = a[0], a[1], a[2]
-
-    XYZ = np.loadtxt("XYZ")
-
-    FIT = np.loadtxt("Water_H2.polyfit")
-    
-    R = np.sqrt(x*x + y*y + z*z)
-    
-    neigh = KNR(n_neighbors=2, p=2)
-    neigh.fit(XYZ, np.zeros((110)))
-    
-    dist, ID = neigh.kneighbors([[x, y, z]])
-
-    E = (np.poly1d(FIT[ID[0][0],:])(R) + np.poly1d(FIT[ID[0][1],:])(R)) / 2.
-
-    return E
-
+    return E / sum(weight)**3
 
 def H2H():
     return 
@@ -48,3 +41,35 @@ def H2H2():
     return
 
 
+if __name__ == '__main__':
+
+    start = time.time()
+
+    Sig = 0.72
+
+    E = np.zeros((1000))
+
+    SmearQuad = 4
+
+    XYZ = np.loadtxt("XYZ")
+    FIT = np.loadtxt("Water_H.polyfit")
+
+    Smear_Absc, Smear_weight = np.polynomial.legendre.leggauss(SmearQuad)
+
+    j = np.linspace(2.5, 8.0, 1000)
+        
+    count = 0
+    for jj in j:
+        #print (jj)
+        E[count] = IE(np.array(([jj, 0., 0.])), XYZ, FIT, Smear_Absc, Smear_weight, SmearQuad, Sig)
+
+        count += 1
+    
+    plt.scatter(j, E)
+
+    for kk in E:
+        print (kk)
+    #plt.legend()
+    #plt.show()
+
+    #print (time.time() - start)
